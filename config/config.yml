@@ -1,0 +1,18 @@
+env: "local"
+
+server:
+  port: "8080"
+
+db:
+  username: "postgres"
+  password: "qwerty"
+  port: "5436"
+  host: "localhost"
+  dbname: "postgres"
+  sslmode: "disable"
+
+redis:
+  host: "localhost"
+  port: "6379"
+  DB: 0
+  password: "qwerty"
