@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -21,20 +22,20 @@ const (
 )
 
 func NewRedis(cfg *config.Config) (*Redis, error) {
-	rds := redis.NewClient(&redis.Options{
+	redisCli := redis.NewClient(&redis.Options{
 		Addr:         cfg.Redis.Host + ":" + cfg.Redis.Port,
 		Password:     cfg.Redis.Password,
 		DB:           cfg.Redis.DB,
-		MaxRetries:   5,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		MaxRetries:   cfg.Redis.Maxretries,
+		ReadTimeout:  cfg.Redis.ReadTimeout,
+		WriteTimeout: cfg.Redis.WriteTimeout,
 	})
 
-	if err := rds.Ping(context.Background()).Err(); err != nil {
-		return nil, err
+	if err := redisCli.Ping(context.Background()).Err(); err != nil {
+		return nil, fmt.Errorf("failed to ping redis-cache: %v", err)
 	}
 
-	return &Redis{rds}, nil
+	return &Redis{redisCli}, nil
 }
 
 func (r *Redis) SetItem(item *domain.ItemDAO) error {
@@ -45,10 +46,7 @@ func (r *Redis) SetItem(item *domain.ItemDAO) error {
 		return err
 	}
 
-	err = r.cli.Set(context.TODO(), id, data, TTLCache).Err()
-	log.Println("item saved in redis")
-
-	return err
+	return r.cli.Set(context.TODO(), id, data, TTLCache).Err()
 }
 
 func (r *Redis) GetItem(itemID int64) (*domain.ItemDAO, error) {

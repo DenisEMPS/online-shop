@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"os"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -28,10 +29,13 @@ type Server struct {
 }
 
 type Redis struct {
-	Host     string `yaml:"host" env-default:"cache"`
-	Port     string `yaml:"port" env-default:"6379"`
-	DB       int    `yaml:"DB" env-default:"0"`
-	Password string `yaml:"password" env-required:"true"`
+	Host         string        `yaml:"host" env-default:"cache"`
+	Port         string        `yaml:"port" env-default:"6379"`
+	DB           int           `yaml:"DB" env-default:"0"`
+	Password     string        `yaml:"password" env-required:"true"`
+	Maxretries   int           `yaml:"maxretries"`
+	ReadTimeout  time.Duration `yaml:"read_timeout" env-required:"true"`
+	WriteTimeout time.Duration `yaml:"write_timeout" env-required:"true"`
 }
 
 func MustLoad() *Config {

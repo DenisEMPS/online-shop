@@ -33,7 +33,7 @@ func main() {
 
 	db, err := repository.NewPostgres(cfg)
 	if err != nil {
-		log.Error("failed to connect to database", slog.Any("error", err))
+		log.Error("failed to connect to postgresql", slog.Any("error", err))
 		os.Exit(1)
 	}
 
@@ -43,8 +43,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	repos := repository.NewRepository(db)
-	service := service.NewService(repos, redis)
+	repos := repository.NewRepository(db, log)
+	service := service.NewService(repos, redis, log)
 	handler := handler.NewHandler(service)
 
 	srv := new(server.Server)

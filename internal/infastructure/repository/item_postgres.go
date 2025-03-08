@@ -28,7 +28,7 @@ func (r *ItemPostgres) Create(item *domain.CreateItem) (int64, error) {
 func (r *ItemPostgres) GetByID(id int64) (*domain.ItemDAO, error) {
 	var item domain.ItemDAO
 
-	query := "SELECT id, name, description, price FROM item WHERE id = $1"
+	query := "SELECT id, name, description, price FROM product WHERE id = $1"
 
 	err := r.db.Get(&item, query, id)
 	if err != nil {
