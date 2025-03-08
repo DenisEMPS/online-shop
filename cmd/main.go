@@ -37,7 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	redis, err := cache.NewRedis(cfg)
+	redis, err := cache.NewRedis(cfg, log)
 	if err != nil {
 		log.Error("failed to connect to redis", slog.Any("error", err))
 		os.Exit(1)

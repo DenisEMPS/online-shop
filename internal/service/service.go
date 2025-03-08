@@ -8,9 +8,9 @@ import (
 	"github.com/DenisEMPS/online-shop/internal/infastructure/repository"
 )
 
-type Item interface {
-	Create(item *domain.CreateItem) (int64, error)
-	GetByID(id int64) (*domain.ItemDAO, error)
+type Product interface {
+	Create(item *domain.CreateProduct) (int64, error)
+	GetByID(id int64) (*domain.ProductDAO, error)
 }
 
 type Auth interface {
@@ -21,13 +21,13 @@ type Auth interface {
 }
 
 type Service struct {
-	Item
+	Product
 	Auth
 }
 
 func NewService(repo *repository.Repository, cacheInstance cache.Cache, log *slog.Logger) *Service {
 	return &Service{
-		Item: NewItemService(repo.Item, cacheInstance),
-		Auth: NewAuthService(repo.Auth, log),
+		Product: NewItemService(repo.Product, cacheInstance, log),
+		Auth:    NewAuthService(repo.Auth, log),
 	}
 }

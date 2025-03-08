@@ -8,6 +8,7 @@ import (
 
 	"github.com/DenisEMPS/online-shop/internal/domain"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 var (
@@ -37,14 +38,18 @@ func (r *AuthPostgres) Register(input *domain.UserCreate) (int64, error) {
 
 	if err := tx.QueryRow(query, input.Country, input.City, input.Street).Scan(&id); err != nil {
 		errRB := tx.Rollback()
-		return 0, fmt.Errorf("%s: %w\nrollback_error=%w", op, err, errRB)
+		return 0, fmt.Errorf("%s: %w\trollback_error=%w", op, err, errRB)
 	}
 
 	query = `INSERT INTO "user" (email, phone, password, first_name, second_name, adress_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
 
 	if err := tx.QueryRow(query, input.Email, input.Phone, input.PassHash, input.FirstName, input.SecondName, id).Scan(&id); err != nil {
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
+			errRB := tx.Rollback()
+			return 0, fmt.Errorf("%s: %w\trollback_error=%w", op, ErrUserExists, errRB)
+		}
 		errRB := tx.Rollback()
-		return 0, fmt.Errorf("%s: %w\nrollback_error=%w", op, err, errRB)
+		return 0, fmt.Errorf("%s: %w\trollback_error=%w", op, err, errRB)
 	}
 
 	return id, tx.Commit()
@@ -53,10 +58,10 @@ func (r *AuthPostgres) Register(input *domain.UserCreate) (int64, error) {
 func (r *AuthPostgres) Login(input *domain.UserLogin) (*domain.UserLoginDAO, error) {
 	const op = "auth_postgres.login"
 
-	query := `SELECT id, password FROM "user" WHERE email = $1`
+	query := `SELECT id, password, email FROM "user" WHERE email = $1`
 	var userData domain.UserLoginDAO
 
-	if err := r.db.QueryRow(query, input.Email).Scan(&userData.ID, &userData.PassHash); err != nil {
+	if err := r.db.QueryRow(query, input.Email).Scan(&userData.ID, &userData.PassHash, &userData.Email); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("%s: %w", op, ErrUserNotFound)
 		}

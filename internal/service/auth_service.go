@@ -33,31 +33,31 @@ func NewAuthService(repo repository.Auth, log *slog.Logger) *AuthService {
 func (s *AuthService) Register(input *domain.UserCreate) (int64, error) {
 	const op = "auth_service.register"
 
-	s.log.With(
+	log := s.log.With(
 		slog.String("op", op),
 		slog.String("email", input.Email),
 	)
 
-	s.log.Info("registering new user")
+	log.Info("registering new user")
 
 	passHash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		s.log.Error("failed to generate password hash", slog.String("error", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+		log.Error("failed to generate password hash", slog.String("error", err.Error()))
+		return 0, fmt.Errorf("%s %w", op, err)
 	}
 
 	input.PassHash = passHash
 	id, err := s.repo.Register(input)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserExists) {
-			s.log.Info("user allready exists")
+			log.Info("user allready exists")
 			return 0, ErrUserExists
 		}
-		s.log.Error("failed to register user", slog.String("error", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+		log.Error("failed to register user", slog.String("error", err.Error()))
+		return 0, fmt.Errorf("%s %w", op, err)
 	}
 
-	s.log.Info("user successfuly registered")
+	log.Info("user successfuly registered")
 
 	return id, nil
 }
@@ -65,40 +65,40 @@ func (s *AuthService) Register(input *domain.UserCreate) (int64, error) {
 func (s *AuthService) Login(input *domain.UserLogin) (string, error) {
 	const op = "auth_service.login"
 
-	s.log.With(
+	log := s.log.With(
 		slog.String("op", op),
 		slog.String("email", input.Email),
 	)
 
-	s.log.Info("attempting to login user")
+	log.Info("attempting to login user")
 
 	userData, err := s.repo.Login(input)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
-			s.log.Info("user not found", slog.String("error", err.Error()))
-			return "", fmt.Errorf("%s: %w", op, ErrUserNotFound)
+			log.Info("user not found")
+			return "", fmt.Errorf("%s %w", op, ErrUserNotFound)
 		}
-		s.log.Error("failed to get user", slog.String("error", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, err)
+		log.Error("failed to get user", slog.String("error", err.Error()))
+		return "", fmt.Errorf("%s %w", op, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword(userData.PassHash, []byte(input.Password)); err != nil {
-		s.log.Info("invalid credentials", slog.String("error", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		log.Info("invalid credentials", slog.String("error", err.Error()))
+		return "", fmt.Errorf("%s %w", op, ErrInvalidCredentials)
 	}
 
 	token, err := s.GenerateToken(userData)
 	if err != nil {
-		s.log.Error("failed to generate token", slog.String("error", err.Error()))
-		return "", fmt.Errorf("%s: %w", op, err)
+		log.Error("failed to generate token", slog.String("error", err.Error()))
+		return "", fmt.Errorf("%s %w", op, err)
 	}
 
-	s.log.Info("user logged in successfuly")
+	log.Info("user logged in successfuly")
 
 	return token, nil
 }
 
-func (s *AuthService) GenerateToken(userData *domain.UserLoginDAO) (string, error) {
+func (*AuthService) GenerateToken(userData *domain.UserLoginDAO) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &domain.Claims{
 		StandardClaims: jwt.StandardClaims{
 			IssuedAt:  time.Now().Unix(),
@@ -119,7 +119,7 @@ func (s *AuthService) GenerateToken(userData *domain.UserLoginDAO) (string, erro
 func (s *AuthService) ParseToken(token string) (int64, error) {
 	const op = "auth_service.parse_token"
 
-	s.log.With(
+	log := s.log.With(
 		slog.String("op", op),
 		slog.String("token", token),
 	)
@@ -133,22 +133,26 @@ func (s *AuthService) ParseToken(token string) (int64, error) {
 	})
 
 	if err != nil {
-		s.log.Warn("invalid token signing method")
-		return 0, ErrTokenInvalidSigningMethod
+		if errors.Is(err, ErrTokenInvalidSigningMethod) {
+			log.Warn("invalid token signing method")
+			return 0, ErrTokenInvalidSigningMethod
+		}
+		log.Error("invalid token signing method", slog.String("error", err.Error()))
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	if !tokenParsed.Valid {
-		s.log.Info("token is not valid")
+		log.Info("token is not valid")
 		return 0, ErrInvalidToken
 	}
 
 	claims, ok := tokenParsed.Claims.(*domain.Claims)
 	if !ok {
-		s.log.Warn("token claims is not in type")
+		log.Warn("token claims is not in type")
 		return 0, ErrInvalidToken
 	}
 
-	s.log.Info("token successfuly parsed", slog.String("email", claims.UserEmail))
+	log.Info("token successfuly parsed", slog.String("email", claims.UserEmail))
 
 	return claims.UserID, nil
 }

@@ -3,8 +3,9 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -15,13 +16,14 @@ import (
 
 type Redis struct {
 	cli *redis.Client
+	log *slog.Logger
 }
 
 const (
 	TTLCache = 15 * time.Minute
 )
 
-func NewRedis(cfg *config.Config) (*Redis, error) {
+func NewRedis(cfg *config.Config, log *slog.Logger) (*Redis, error) {
 	redisCli := redis.NewClient(&redis.Options{
 		Addr:         cfg.Redis.Host + ":" + cfg.Redis.Port,
 		Password:     cfg.Redis.Password,
@@ -35,36 +37,54 @@ func NewRedis(cfg *config.Config) (*Redis, error) {
 		return nil, fmt.Errorf("failed to ping redis-cache: %v", err)
 	}
 
-	return &Redis{redisCli}, nil
+	return &Redis{redisCli, log}, nil
 }
 
-func (r *Redis) SetItem(item *domain.ItemDAO) error {
-	id := strconv.Itoa(int(item.ID))
+func (r *Redis) SetItem(product *domain.ProductDAO) error {
+	log := r.log.With(
+		slog.Any("id", product.ID),
+	)
 
-	data, err := json.Marshal(*item)
+	id := strconv.Itoa(int(product.ID))
+
+	data, err := json.Marshal(product)
 	if err != nil {
 		return err
 	}
 
-	return r.cli.Set(context.TODO(), id, data, TTLCache).Err()
+	log.Info("set product to cache")
+	err = r.cli.Set(context.TODO(), id, data, TTLCache).Err()
+	if err != nil {
+		log.Error("failed to set product in cache")
+	}
+
+	return nil
 }
 
-func (r *Redis) GetItem(itemID int64) (*domain.ItemDAO, error) {
-	var itemOut domain.ItemDAO
+func (r *Redis) GetItem(productID int64) (*domain.ProductDAO, error) {
+	log := r.log.With(
+		slog.Any("id", productID),
+	)
 
-	id := strconv.Itoa(int(itemID))
+	var itemRes domain.ProductDAO
+
+	id := strconv.Itoa(int(productID))
 
 	res, err := r.cli.Get(context.TODO(), id).Result()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, err
+		}
+		slog.Error("failed to get product from cache")
 		return nil, err
 	}
 
-	err = json.Unmarshal([]byte(res), &itemOut)
+	err = json.Unmarshal([]byte(res), &itemRes)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Println("read item from cache")
+	log.Info("read product from cache")
 
-	return &itemOut, nil
+	return &itemRes, nil
 }

@@ -7,9 +7,9 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Item interface {
-	Create(item *domain.CreateItem) (int64, error)
-	GetByID(id int64) (*domain.ItemDAO, error)
+type Product interface {
+	Create(item *domain.CreateProduct) (int64, error)
+	GetByID(id int64) (*domain.ProductDAO, error)
 }
 
 type Auth interface {
@@ -18,13 +18,13 @@ type Auth interface {
 }
 
 type Repository struct {
-	Item
+	Product
 	Auth
 }
 
 func NewRepository(db *sqlx.DB, log *slog.Logger) *Repository {
 	return &Repository{
-		Item: NewPostgresItem(db),
-		Auth: NewAuthPostgres(db, log),
+		Product: NewPostgresItem(db),
+		Auth:    NewAuthPostgres(db, log),
 	}
 }
