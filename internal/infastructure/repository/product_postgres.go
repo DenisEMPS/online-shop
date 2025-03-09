@@ -1,11 +1,13 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/DenisEMPS/online-shop/internal/domain"
+	"github.com/DenisEMPS/online-shop/internal/domain/filter"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -50,4 +52,40 @@ func (r *ProductPostgres) GetByID(id int64) (*domain.ProductDAO, error) {
 	}
 
 	return &item, nil
+}
+
+func (r *ProductPostgres) GetAll(ctx context.Context, filterOptions filter.Options, sortOptions *domain.SortOptions) ([]*domain.ProductDAO, error) {
+	const op = "product_postgres.get_all"
+
+	var WHERE = "WHERE 1 = 1"
+	var filtErr error
+	var args []interface{}
+	if filterOptions.IsToApply() {
+		WHERE, args, filtErr = filter.BuildQuery(filterOptions)
+		if filtErr != nil {
+			return nil, fmt.Errorf("invalid filter options: %w", filtErr)
+		}
+	}
+
+	query := fmt.Sprintf("SELECT id, name, description, price FROM product %s ORDER BY %s %s LIMIT %d", WHERE, sortOptions.SortBy, sortOptions.SortOrder, filterOptions.GetLimit())
+	raws, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("%v: %w with query: %v", op, err, query)
+	}
+
+	products := make([]*domain.ProductDAO, 0)
+	for raws.Next() {
+		var product domain.ProductDAO
+		if err := raws.Scan(&product.ID, &product.Name, &product.Description, &product.Price); err != nil {
+			return nil, fmt.Errorf("%v: %w with query: %v", op, err, query)
+		}
+
+		products = append(products, &product)
+	}
+
+	if len(products) == 0 {
+		return nil, fmt.Errorf("%s: %w with query: %s", op, ErrProductNotExists, query)
+	}
+
+	return products, nil
 }

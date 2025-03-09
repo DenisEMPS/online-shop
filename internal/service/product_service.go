@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/DenisEMPS/online-shop/internal/domain"
+	"github.com/DenisEMPS/online-shop/internal/domain/filter"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/cache"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/repository"
 )
@@ -70,5 +72,26 @@ func (s *ItemService) GetByID(id int64) (*domain.ProductDAO, error) {
 
 	_ = s.cache.SetItem(item)
 
+	fmt.Println("there is no cache presents")
 	return item, err
+}
+
+func (s *ItemService) GetAll(ctx context.Context, filterOptions filter.Options, sortOptions *domain.SortOptions) ([]*domain.ProductDAO, error) {
+	const op = "product_service.get_all"
+
+	log := s.log.With(
+		slog.String("op", op),
+	)
+
+	products, err := s.repo.GetAll(ctx, filterOptions, sortOptions)
+	if err != nil {
+		if errors.Is(err, repository.ErrProductNotExists) {
+			log.Warn("products does not exists", slog.String("error", err.Error()))
+			return nil, fmt.Errorf("%s: %w", op, ErrProductNotExists)
+		}
+		log.Error("failed to get products", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return products, nil
 }

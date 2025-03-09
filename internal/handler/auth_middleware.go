@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -41,4 +42,20 @@ func (h *Handler) UserIdentity(c *gin.Context) {
 	}
 
 	c.Set("user_id", id)
+}
+
+func getUserID(c *gin.Context) (int64, error) {
+	idParam, ok := c.Get("user_id")
+	if !ok {
+		NewErrorResponse(c, http.StatusUnauthorized, "invalid request params")
+		return 0, fmt.Errorf("failed to get user id from context")
+	}
+
+	id, ok := idParam.(int64)
+	if !ok {
+		NewErrorResponse(c, http.StatusUnauthorized, "invalid request params")
+		return 0, fmt.Errorf("failed to cast id in int %v", id)
+	}
+
+	return id, nil
 }

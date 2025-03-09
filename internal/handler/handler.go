@@ -24,10 +24,11 @@ func (h *Handler) InitRoutes() *gin.Engine {
 
 	api := r.Group("/api", h.UserIdentity)
 	{
-		item := api.Group("/item")
+		product := api.Group("/product")
 		{
-			item.GET("/:id", h.GetProductByID)
-			item.POST("/", h.CreateProduct)
+			product.GET("/:id", h.GetProductByID)
+			product.GET("/", h.GetAllProducts)
+			product.POST("/", h.CreateProduct)
 		}
 	}
 
