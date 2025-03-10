@@ -48,6 +48,12 @@ func (h *Handler) LoginUser(c *gin.Context) {
 		} else if errors.Is(err, service.ErrInvalidCredentials) {
 			NewErrorResponse(c, http.StatusUnauthorized, "wrong password")
 			return
+		} else if errors.Is(err, service.ErrInvalidToken) {
+			NewErrorResponse(c, http.StatusUnauthorized, "invalid session token")
+			return
+		} else if errors.Is(err, service.ErrTokenInvalidSigningMethod) {
+			NewErrorResponse(c, http.StatusUnauthorized, "invalid session token")
+			return
 		} else {
 			NewErrorResponse(c, http.StatusInternalServerError, "internal error")
 			return
