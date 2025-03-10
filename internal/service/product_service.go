@@ -7,8 +7,9 @@ import (
 	"log/slog"
 
 	"github.com/DenisEMPS/online-shop/internal/domain"
-	"github.com/DenisEMPS/online-shop/internal/domain/filter"
+	"github.com/DenisEMPS/online-shop/internal/filter"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/cache"
+	"github.com/DenisEMPS/online-shop/internal/infastructure/kafka"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/repository"
 )
 
@@ -17,13 +18,14 @@ var (
 )
 
 type ItemService struct {
-	repo  repository.Product
-	cache cache.Cache
-	log   *slog.Logger
+	repo      repository.Product
+	cache     cache.Cache
+	log       *slog.Logger
+	kafkaProd *kafka.Producer
 }
 
-func NewItemService(repo repository.Product, cacheInstance cache.Cache, log *slog.Logger) *ItemService {
-	return &ItemService{repo: repo, cache: cacheInstance, log: log}
+func NewItemService(repo repository.Product, cacheInstance cache.Cache, kafkaProd *kafka.Producer, log *slog.Logger) *ItemService {
+	return &ItemService{repo: repo, cache: cacheInstance, kafkaProd: kafkaProd, log: log}
 }
 func (s *ItemService) Create(item *domain.CreateProduct) (int64, error) {
 	const op = "item_service.create"
@@ -72,7 +74,6 @@ func (s *ItemService) GetByID(id int64) (*domain.ProductDAO, error) {
 
 	_ = s.cache.SetItem(item)
 
-	fmt.Println("there is no cache presents")
 	return item, err
 }
 

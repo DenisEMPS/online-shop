@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/DenisEMPS/online-shop/internal/domain"
-	"github.com/DenisEMPS/online-shop/internal/domain/filter"
+	"github.com/DenisEMPS/online-shop/internal/filter"
 	"github.com/DenisEMPS/online-shop/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -22,6 +22,8 @@ const (
 	qInStock         = "in_stock"
 	qCreatedAt       = "created_at"
 	qLimit           = "limit"
+	qSortBy          = "sort_by"
+	qSortOrder       = "sort_order"
 )
 
 func (h *Handler) CreateProduct(c *gin.Context) {
@@ -91,8 +93,8 @@ func (h *Handler) GetAllProducts(c *gin.Context) {
 
 func SortAllProducts(c *gin.Context) (*domain.SortOptions, error) {
 	sortOptions := &domain.SortOptions{
-		SortBy:    c.DefaultQuery("sort_by", defaultSortBy),
-		SortOrder: c.DefaultQuery("sort_order", defaultSortOrder),
+		SortBy:    c.DefaultQuery(qSortBy, defaultSortBy),
+		SortOrder: c.DefaultQuery(qSortOrder, defaultSortOrder),
 	}
 	if strings.ToUpper(sortOptions.SortOrder) != "DESC" && strings.ToUpper(sortOptions.SortOrder) != "ASC" {
 		return nil, fmt.Errorf("invalid sort order option: %v", sortOptions.SortOrder)
@@ -103,9 +105,9 @@ func SortAllProducts(c *gin.Context) (*domain.SortOptions, error) {
 
 func FilterAllProducts(c *gin.Context) (filter.Options, error) {
 	var limit int
-	q, ok := c.GetQuery(qLimit)
+	queryVal, ok := c.GetQuery(qLimit)
 	if ok {
-		qVal, err := strconv.Atoi(q)
+		qVal, err := strconv.Atoi(queryVal)
 		if err != nil {
 			NewErrorResponse(c, http.StatusBadRequest, "invalid request params")
 			return nil, fmt.Errorf("invalid request params")
@@ -125,7 +127,7 @@ func FilterAllProducts(c *gin.Context) (filter.Options, error) {
 
 	price, ok := c.GetQuery(qPrice)
 	if ok {
-		operator := "eq"
+		operator := filter.OperatorEq
 		value := price
 		if strings.Contains(price, ":") {
 			split := strings.Split(price, ":")

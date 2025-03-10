@@ -8,9 +8,14 @@ import (
 	"time"
 
 	"github.com/DenisEMPS/online-shop/internal/domain"
+	"github.com/DenisEMPS/online-shop/internal/infastructure/kafka"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/repository"
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	usersTopic = "users"
 )
 
 var (
@@ -22,12 +27,13 @@ var (
 )
 
 type AuthService struct {
-	repo repository.Auth
-	log  *slog.Logger
+	repo      repository.Auth
+	log       *slog.Logger
+	kafkaProd *kafka.Producer
 }
 
-func NewAuthService(repo repository.Auth, log *slog.Logger) *AuthService {
-	return &AuthService{repo: repo, log: log}
+func NewAuthService(repo repository.Auth, kafkaProd *kafka.Producer, log *slog.Logger) *AuthService {
+	return &AuthService{repo: repo, kafkaProd: kafkaProd, log: log}
 }
 
 func (s *AuthService) Register(input *domain.UserCreate) (int64, error) {
@@ -59,6 +65,11 @@ func (s *AuthService) Register(input *domain.UserCreate) (int64, error) {
 
 	log.Info("user successfuly registered")
 
+	go func() {
+		if err := s.kafkaProd.Produce(fmt.Sprintf("email %s", input.Email), usersTopic); err != nil {
+			log.Error("failed to produce message about register user: %v", input.Email, slog.String("error", err.Error()))
+		}
+	}()
 	return id, nil
 }
 
@@ -133,12 +144,8 @@ func (s *AuthService) ParseToken(token string) (int64, error) {
 	})
 
 	if err != nil {
-		if errors.Is(err, ErrTokenInvalidSigningMethod) {
-			log.Warn("invalid token signing method")
-			return 0, ErrTokenInvalidSigningMethod
-		}
 		log.Error("invalid token signing method", slog.String("error", err.Error()))
-		return 0, fmt.Errorf("%s: %w", op, err)
+		return 0, fmt.Errorf("%s: %w", op, ErrTokenInvalidSigningMethod)
 	}
 
 	if !tokenParsed.Valid {

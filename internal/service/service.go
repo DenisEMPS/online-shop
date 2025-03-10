@@ -5,8 +5,9 @@ import (
 	"log/slog"
 
 	"github.com/DenisEMPS/online-shop/internal/domain"
-	"github.com/DenisEMPS/online-shop/internal/domain/filter"
+	"github.com/DenisEMPS/online-shop/internal/filter"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/cache"
+	"github.com/DenisEMPS/online-shop/internal/infastructure/kafka"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/repository"
 )
 
@@ -28,9 +29,9 @@ type Service struct {
 	Auth
 }
 
-func NewService(repo *repository.Repository, cacheInstance cache.Cache, log *slog.Logger) *Service {
+func NewService(repo *repository.Repository, cacheInstance cache.Cache, kafkaProd *kafka.Producer, log *slog.Logger) *Service {
 	return &Service{
-		Product: NewItemService(repo.Product, cacheInstance, log),
-		Auth:    NewAuthService(repo.Auth, log),
+		Product: NewItemService(repo.Product, cacheInstance, kafkaProd, log),
+		Auth:    NewAuthService(repo.Auth, kafkaProd, log),
 	}
 }

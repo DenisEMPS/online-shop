@@ -11,6 +11,7 @@ import (
 	"github.com/DenisEMPS/online-shop/internal/config"
 	"github.com/DenisEMPS/online-shop/internal/handler"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/cache"
+	"github.com/DenisEMPS/online-shop/internal/infastructure/kafka"
 	"github.com/DenisEMPS/online-shop/internal/infastructure/repository"
 	"github.com/DenisEMPS/online-shop/internal/service"
 	"github.com/DenisEMPS/online-shop/server"
@@ -20,6 +21,10 @@ const (
 	envLocal = "local"
 	envProd  = "prod"
 	envDev   = "dev"
+)
+
+var (
+	kafkaAddrs = []string{os.Getenv("KAFKA_ADDR_1"), os.Getenv("KAFKA_ADDR_2"), os.Getenv("KAFKA_ADDR_3")}
 )
 
 func main() {
@@ -43,8 +48,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	kafkaProducer, err := kafka.NewProducer(kafkaAddrs)
+	if err != nil {
+		log.Error("failed to create new kafka producer", slog.Any("error", err))
+		os.Exit(1)
+	}
+
 	repos := repository.NewRepository(db, log)
-	service := service.NewService(repos, redis, log)
+	service := service.NewService(repos, redis, kafkaProducer, log)
 	handler := handler.NewHandler(service)
 
 	srv := new(server.Server)

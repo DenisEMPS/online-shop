@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/DenisEMPS/online-shop/internal/domain"
-	"github.com/DenisEMPS/online-shop/internal/domain/filter"
+	"github.com/DenisEMPS/online-shop/internal/filter"
 	"github.com/jmoiron/sqlx"
 )
 
